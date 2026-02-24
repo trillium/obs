@@ -1,0 +1,3 @@
+atproto>=0.0.50
+tweepy>=4.14
+python-dotenv
