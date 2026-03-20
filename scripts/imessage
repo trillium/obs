@@ -1,0 +1,81 @@
+#!/bin/bash
+# Toggle iMessage (imagent daemon) on and off.
+#
+# Usage:
+#   imessage off    — stop imagent, quit Messages app
+#   imessage on     — restart imagent
+#   imessage status — check if imagent is running
+
+set -euo pipefail
+
+PLIST="/System/Library/LaunchAgents/com.apple.imagent.plist"
+DOMAIN="gui/$(id -u)"
+
+usage() {
+  echo "Usage: imessage {on|off|status}"
+  exit 1
+}
+
+status() {
+  if pgrep -x imagent > /dev/null 2>&1; then
+    echo "iMessage is ON (imagent running, pid $(pgrep -x imagent))"
+    return 0
+  else
+    echo "iMessage is OFF (imagent not running)"
+    return 1
+  fi
+}
+
+off() {
+  if ! pgrep -x imagent > /dev/null 2>&1; then
+    echo "iMessage is already off."
+    return 0
+  fi
+
+  # Quit Messages.app gracefully first
+  osascript -e 'tell application "Messages" to quit' 2>/dev/null || true
+
+  # Unregister the daemon so launchd won't respawn it
+  launchctl bootout "$DOMAIN" "$PLIST" 2>/dev/null || true
+
+  # Verify
+  sleep 1
+  if pgrep -x imagent > /dev/null 2>&1; then
+    echo "Warning: imagent still running. Attempting kill..."
+    kill "$(pgrep -x imagent)" 2>/dev/null || true
+    sleep 1
+  fi
+
+  if pgrep -x imagent > /dev/null 2>&1; then
+    echo "Failed to stop imagent."
+    return 1
+  fi
+
+  echo "iMessage is now OFF. Messages will queue on your other devices."
+}
+
+on() {
+  if pgrep -x imagent > /dev/null 2>&1; then
+    echo "iMessage is already on."
+    return 0
+  fi
+
+  # Re-register the daemon
+  launchctl bootstrap "$DOMAIN" "$PLIST" 2>/dev/null || true
+
+  sleep 1
+  if pgrep -x imagent > /dev/null 2>&1; then
+    echo "iMessage is now ON (imagent pid $(pgrep -x imagent))."
+  else
+    echo "Warning: imagent did not start. You may need to open Messages.app manually."
+  fi
+}
+
+[[ $# -lt 1 ]] && usage
+
+case "$1" in
+  off)    off ;;
+  on)     on ;;
+  status) status ;;
+  *)      usage ;;
+esac
