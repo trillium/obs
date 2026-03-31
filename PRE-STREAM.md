@@ -7,6 +7,12 @@ Run through before every stream.
 - [ ] `imessage off` — disable iMessage on this Mac
 - [ ] Enable Do Not Disturb (Focus mode) for remaining apps
 
+## PII Mask
+
+- [ ] Start daemon: `PiiMaskDaemon` (or verify already running)
+- [ ] `pii diag` — confirm daemon alive, full_mask off, shm fresh
+- [ ] `pii show` — review safe/masked windows, verify nothing sensitive is SHOW
+
 ## OBS
 
 - [ ] Open OBS, verify correct scene collection is loaded
