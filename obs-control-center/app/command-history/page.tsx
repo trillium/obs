@@ -3,39 +3,34 @@
 import { useEffect, useState } from "react";
 
 interface Command {
-	display: string | null;
-	phrase: string | null;
-	app: string | null;
-	timestamp: string | null;
-	success: boolean | null;
+	display: string;
+	phrase: string;
+	app: string;
+	timestamp: string;
+	success: boolean;
 }
 
-const POLL_INTERVAL = 1000;
 const VISIBLE_COMMANDS = 20;
 
 export default function CommandHistory() {
 	const [commands, setCommands] = useState<Command[]>([]);
 
 	useEffect(() => {
-		let active = true;
+		const source = new EventSource("/api/commands");
 
-		async function poll() {
-			try {
-				const res = await fetch("/api/commands");
-				if (res.ok && active) {
-					const data: Command[] = await res.json();
-					setCommands(data.slice(0, VISIBLE_COMMANDS));
-				}
-			} catch {
-				// silently retry next interval
+		source.onmessage = (event) => {
+			const data = JSON.parse(event.data);
+
+			if (Array.isArray(data)) {
+				// Initial batch
+				setCommands(data.slice(0, VISIBLE_COMMANDS));
+			} else {
+				// Single new command — prepend
+				setCommands((prev) => [data, ...prev].slice(0, VISIBLE_COMMANDS));
 			}
-			if (active) setTimeout(poll, POLL_INTERVAL);
-		}
-
-		poll();
-		return () => {
-			active = false;
 		};
+
+		return () => source.close();
 	}, []);
 
 	return (
@@ -49,8 +44,7 @@ export default function CommandHistory() {
 
 			{/* Command list */}
 			<div className="flex flex-1 flex-col-reverse overflow-hidden px-2 py-1">
-				{commands.map((cmd) => {
-					const idx = commands.indexOf(cmd);
+				{commands.map((cmd, idx) => {
 					const opacity = Math.max(0.15, 1 - idx * 0.045);
 					return (
 						<div
