@@ -1,0 +1,27 @@
+.socials {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin-top: 50px;
+  flex-wrap: wrap;
+}
+.social {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.6;
+}
+.social .icon {
+  font-size: 24px;
+}
+.social .platform {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #888;
+}
+.social .handle {
+  font-size: 18px;
+  color: #ccc;
+}
