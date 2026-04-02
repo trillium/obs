@@ -3,7 +3,7 @@ import Link from "next/link";
 const overlays = [
 	{ name: "Starting Soon", href: "/overlay/starting-soon" },
 	{ name: "Stream Ending", href: "/overlay/stream-ending" },
-	{ name: "Command History", href: "/overlay/command-history" },
+	{ name: "Command History", href: "/command-history" },
 	{ name: "Be Right Back", href: "/overlay/brb" },
 ];
 
