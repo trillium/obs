@@ -42,10 +42,35 @@
     text-transform: uppercase;
     opacity: 0.4;
     margin-top: 40px;
+    margin-bottom: 50px;
   }
   @keyframes pulse {
     0%, 100% { opacity: 0.9; }
     50% { opacity: 0.5; }
+  }
+  .socials {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    flex-wrap: wrap;
+  }
+  .social {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    opacity: 0.6;
+  }
+  .social .icon { font-size: 24px; }
+  .social .platform {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #888;
+  }
+  .social .handle {
+    font-size: 18px;
+    color: #ccc;
   }
 </style>
 </head>
@@ -54,6 +79,28 @@
     <h1>Starting Soon</h1>
     <div class="timer" id="timer">--:--</div>
     <div class="subtitle">stream begins shortly</div>
+    <div class="socials">
+      <div class="social">
+        <span class="icon">🦋</span>
+        <div><div class="platform">Bluesky</div><div class="handle">@trillium.is</div></div>
+      </div>
+      <div class="social">
+        <span class="icon">🐙</span>
+        <div><div class="platform">GitHub</div><div class="handle">trillium</div></div>
+      </div>
+      <div class="social">
+        <span class="icon">💼</span>
+        <div><div class="platform">LinkedIn</div><div class="handle">/in/trilliumsmith</div></div>
+      </div>
+      <div class="social">
+        <span class="icon">📺</span>
+        <div><div class="platform">YouTube</div><div class="handle">@Trillium_is</div></div>
+      </div>
+      <div class="social">
+        <span class="icon">🎮</span>
+        <div><div class="platform">Twitch</div><div class="handle">trilliumsmith</div></div>
+      </div>
+    </div>
   </div>
   <script>
     const CONFIG_PATH = 'file:///Users/trilliumsmith/code/obs/overlays/countdown.txt';
@@ -83,12 +130,10 @@
 
     function parseTime(text) {
       const clean = text.trim();
-      // Supports "10:00", "10", "13:10"
       const parts = clean.split(':');
       if (parts.length === 2) {
         return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
       }
-      // Just a number = minutes
       return parseInt(parts[0], 10) * 60;
     }
 
@@ -102,13 +147,9 @@
           ticking = true;
           tick();
         }
-      } catch (e) {
-        // File not readable yet, keep waiting
-      }
+      } catch (e) {}
     }
 
-    // Poll the config file every 2 seconds
-    // When the file changes and timer isn't running, it picks up the new value
     setInterval(checkConfig, 2000);
     checkConfig();
   </script>
