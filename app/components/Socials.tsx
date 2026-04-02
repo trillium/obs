@@ -1,11 +1,11 @@
-import { SiBluesky, SiGithub, SiLinkedin, SiTwitch, SiYoutube } from "react-icons/si";
+"use client";
 
 const socials = [
-	{ platform: "Bluesky", handle: "@trillium.is", icon: SiBluesky },
-	{ platform: "GitHub", handle: "trillium", icon: SiGithub },
-	{ platform: "LinkedIn", handle: "/in/trilliumsmith", icon: SiLinkedin },
-	{ platform: "YouTube", handle: "@Trillium_is", icon: SiYoutube },
-	{ platform: "Twitch", handle: "trilliumsmith", icon: SiTwitch },
+	{ platform: "Bluesky", handle: "@trillium.is", emoji: "🦋" },
+	{ platform: "GitHub", handle: "trillium", emoji: "🐙" },
+	{ platform: "LinkedIn", handle: "/in/trilliumsmith", emoji: "💼" },
+	{ platform: "YouTube", handle: "@Trillium_is", emoji: "📺" },
+	{ platform: "Twitch", handle: "trilliumsmith", emoji: "🎮" },
 ];
 
 export function Socials() {
@@ -13,7 +13,7 @@ export function Socials() {
 		<div className="mt-12 flex flex-wrap justify-center gap-10">
 			{socials.map((s) => (
 				<div key={s.platform} className="flex items-center gap-3 opacity-60">
-					<s.icon className="text-2xl" />
+					<span className="text-2xl">{s.emoji}</span>
 					<div>
 						<div className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
 							{s.platform}
