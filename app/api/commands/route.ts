@@ -1,14 +1,8 @@
-import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { readFile } from "node:fs/promises";
 
-const COMMANDS_DIR = "/Users/trilliumsmith/.talon/recordings/commands";
+const HISTORY_FILE =
+	"/Users/trilliumsmith/.talon/recordings/command_history.jsonl";
 const MAX_COMMANDS = 50;
-
-/** Extract the timestamp portion after "__" from filenames like "unknown__2026-04-02_00-00-47-390306.json" */
-function extractTimestamp(filename: string): string {
-	const idx = filename.indexOf("__");
-	return idx >= 0 ? filename.slice(idx + 2) : filename;
-}
 
 interface CommandRecord {
 	command: { trigger: string; rule: string; display: string };
@@ -28,21 +22,16 @@ interface CommandSummary {
 
 export async function GET() {
 	try {
-		let files = await readdir(COMMANDS_DIR);
-		files = files.filter((f) => f.endsWith(".json"));
+		const raw = await readFile(HISTORY_FILE, "utf-8");
 
-		// Sort by embedded timestamp descending (newest first)
-		files.sort(
-			(a, b) => extractTimestamp(b).localeCompare(extractTimestamp(a)),
-		);
+		// Take the last N lines (file is append-only, newest at bottom)
+		const lines = raw.trimEnd().split("\n");
+		const recent = lines.slice(-MAX_COMMANDS).reverse();
 
-		// Lazy iteration — read one at a time, stop at limit
 		const results: CommandSummary[] = [];
-		for (const filename of files) {
-			if (results.length >= MAX_COMMANDS) break;
+		for (const line of recent) {
 			try {
-				const raw = await readFile(join(COMMANDS_DIR, filename), "utf-8");
-				const data: CommandRecord = JSON.parse(raw);
+				const data: CommandRecord = JSON.parse(line);
 				results.push({
 					display: data.command?.display ?? "",
 					phrase: data.phrase?.text ?? "",
@@ -51,12 +40,15 @@ export async function GET() {
 					success: data.metadata?.success ?? false,
 				});
 			} catch {
-				// skip malformed files
+				// skip malformed lines
 			}
 		}
 
 		return Response.json(results);
 	} catch {
-		return Response.json({ error: "Failed to read commands" }, { status: 500 });
+		return Response.json(
+			{ error: "Failed to read command history" },
+			{ status: 500 },
+		);
 	}
 }
