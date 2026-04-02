@@ -12,6 +12,11 @@ bd close <id>         # Complete work
 bd sync               # Sync with git
 ```
 
+## Python & Packages
+
+- **Always use `uv`** for Python package management — never `pip` or `pip3` directly.
+- `uv pip install <package>`, `uv run`, `uv venv`, etc.
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
