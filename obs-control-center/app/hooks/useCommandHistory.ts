@@ -11,6 +11,7 @@ export interface Command {
 	app: string;
 	timestamp: string;
 	success: boolean;
+	kind: "spoken" | "repeat" | "reverse";
 	commands: CommandPart[];
 }
 

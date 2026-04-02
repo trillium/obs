@@ -1,11 +1,15 @@
 "use client";
 
+import { useMemo } from "react";
 import { useCommandHistory } from "../hooks/useCommandHistory";
 import { useIsObs } from "../hooks/useObs";
+import { CommandRow } from "./CommandRow";
+import { groupCommands } from "./groupCommands";
 
 export default function CommandHistory() {
-	const commands = useCommandHistory(20);
+	const commands = useCommandHistory(50);
 	const isObs = useIsObs();
+	const groups = useMemo(() => groupCommands(commands), [commands]);
 
 	return (
 		<div
@@ -21,24 +25,10 @@ export default function CommandHistory() {
 			</div>
 
 			{/* Command list */}
-			<div className="flex flex-1 flex-col-reverse overflow-hidden px-2 py-1">
-				{commands.map((cmd) => {
-					return (
-						<div
-							key={cmd.timestamp}
-							className="border-b border-white/5 px-1 py-1"
-						>
-							<div className="truncate text-[11px] leading-tight text-white">
-								{cmd.phrase || "—"}
-							</div>
-							{cmd.rule && cmd.rule !== cmd.phrase && (
-								<div className="truncate text-[9px] leading-tight text-amber-brand/40">
-									{cmd.rule}
-								</div>
-							)}
-						</div>
-					);
-				})}
+			<div className="flex flex-1 flex-col overflow-hidden px-2 py-1">
+				{groups.map((group) => (
+					<CommandRow key={group.cmd.timestamp} group={group} />
+				))}
 			</div>
 		</div>
 	);

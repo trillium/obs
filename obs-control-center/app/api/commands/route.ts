@@ -7,8 +7,9 @@ const DEFAULT_LIMIT = 50;
 // v1 schema
 interface CommandRecordV1 {
 	version?: string;
-	command: { trigger: string; rule: string; display: string };
+	command: { trigger: string; rule: string | null; display: string };
 	phrase: { words: string[]; text: string };
+	opposite?: { exists: boolean; trigger: string | null; reversible: boolean };
 	context: { app: { name: string } };
 	timestamp: string;
 	metadata: { success: boolean };
@@ -37,6 +38,7 @@ interface CommandRecordV2 {
 	phrase: string;
 	words: { text: string; start: number | null; end: number | null }[];
 	commands: CommandEntry[];
+	source?: "voice" | "repeat" | "reverse";
 	context: {
 		app: { name: string; bundle?: string };
 		window: { title?: string; id?: number };
@@ -48,13 +50,29 @@ interface CommandRecordV2 {
 	metadata: { success: boolean };
 }
 
+type CommandKind = "spoken" | "repeat" | "reverse";
+
 interface CommandSummary {
 	phrase: string;
 	rule: string;
 	app: string;
 	timestamp: string;
 	success: boolean;
+	kind: CommandKind;
 	commands: { phrase: string; rule: string }[];
+}
+
+function detectKindV2(data: CommandRecordV2): CommandKind {
+	if (data.source === "voice") return "spoken";
+	if (data.source === "repeat") return "repeat";
+	if (data.source === "reverse") return "reverse";
+	return "spoken";
+}
+
+function detectKindV1(data: CommandRecordV1): CommandKind {
+	if (data.command?.rule !== null) return "spoken";
+	if (data.opposite?.trigger === "reverse") return "reverse";
+	return "repeat";
 }
 
 function parseCommand(line: string): CommandSummary | null {
@@ -70,6 +88,7 @@ function parseCommand(line: string): CommandSummary | null {
 				app: data.context?.app?.name ?? "",
 				timestamp: data.timestamp ?? "",
 				success: data.metadata?.success ?? false,
+				kind: detectKindV2(data),
 				commands: (data.commands ?? []).map((c) => ({
 					phrase: c.phrase,
 					rule: c.rule ?? c.phrase,
@@ -85,6 +104,7 @@ function parseCommand(line: string): CommandSummary | null {
 			app: data.context?.app?.name ?? "",
 			timestamp: data.timestamp ?? "",
 			success: data.metadata?.success ?? false,
+			kind: detectKindV1(data),
 			commands: [
 				{
 					phrase: data.phrase?.text ?? "",
