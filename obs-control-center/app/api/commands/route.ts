@@ -4,7 +4,9 @@ const HISTORY_FILE =
 	"/Users/trilliumsmith/.talon/recordings/command_history.jsonl";
 const DEFAULT_LIMIT = 50;
 
-interface CommandRecord {
+// v1 schema
+interface CommandRecordV1 {
+	version?: string;
 	command: { trigger: string; rule: string; display: string };
 	phrase: { words: string[]; text: string };
 	context: { app: { name: string } };
@@ -12,23 +14,83 @@ interface CommandRecord {
 	metadata: { success: boolean };
 }
 
-interface CommandSummary {
-	display: string;
+// v2 schema
+interface CaptureEntry {
 	phrase: string;
+	value: string;
+	name: string | null;
+}
+
+interface CommandEntry {
+	phrase: string;
+	rule: string | null;
+	code: string | null;
+	path: string | null;
+	line: number | null;
+	captures: CaptureEntry[];
+}
+
+interface CommandRecordV2 {
+	version: string;
+	action_type: "command";
+	timestamp: string;
+	phrase: string;
+	words: { text: string; start: number | null; end: number | null }[];
+	commands: CommandEntry[];
+	context: {
+		app: { name: string; bundle?: string };
+		window: { title?: string; id?: number };
+		microphone: string;
+		mode: string[];
+		tags: string[];
+		hostname?: string;
+	};
+	metadata: { success: boolean };
+}
+
+interface CommandSummary {
+	phrase: string;
+	rule: string;
 	app: string;
 	timestamp: string;
 	success: boolean;
+	commands: { phrase: string; rule: string }[];
 }
 
 function parseCommand(line: string): CommandSummary | null {
 	try {
-		const data: CommandRecord = JSON.parse(line);
+		const raw = JSON.parse(line);
+		const version = raw.version ?? "";
+
+		if (version.startsWith("2.")) {
+			const data = raw as CommandRecordV2;
+			return {
+				phrase: data.phrase ?? "",
+				rule: data.commands?.[0]?.rule ?? data.commands?.[0]?.phrase ?? "",
+				app: data.context?.app?.name ?? "",
+				timestamp: data.timestamp ?? "",
+				success: data.metadata?.success ?? false,
+				commands: (data.commands ?? []).map((c) => ({
+					phrase: c.phrase,
+					rule: c.rule ?? c.phrase,
+				})),
+			};
+		}
+
+		// v1 fallback
+		const data = raw as CommandRecordV1;
 		return {
-			display: data.command?.display ?? "",
 			phrase: data.phrase?.text ?? "",
+			rule: data.command?.display ?? data.command?.rule ?? "",
 			app: data.context?.app?.name ?? "",
 			timestamp: data.timestamp ?? "",
 			success: data.metadata?.success ?? false,
+			commands: [
+				{
+					phrase: data.phrase?.text ?? "",
+					rule: data.command?.display ?? "",
+				},
+			],
 		};
 	} catch {
 		return null;
@@ -64,14 +126,13 @@ async function linesSince(
 		const lines = buf.toString("utf-8").trimEnd().split("\n");
 
 		const results: CommandSummary[] = [];
-		// Walk backwards from newest, stop when we hit a known timestamp
 		for (let i = lines.length - 1; i >= 0; i--) {
 			const cmd = parseCommand(lines[i]);
 			if (!cmd) continue;
 			if (cmd.timestamp <= since) break;
 			results.push(cmd);
 		}
-		return results; // newest first
+		return results;
 	} finally {
 		await fh.close();
 	}
@@ -111,10 +172,8 @@ export async function GET(request: Request) {
 
 	const readable = new ReadableStream({
 		async start(controller) {
-			// Initial batch or catch-up after reconnect
 			try {
 				if (lastEventId) {
-					// Reconnect: send only commands newer than last seen
 					const missed = await linesSince(HISTORY_FILE, lastEventId);
 					if (missed.length > 0) {
 						controller.enqueue(
@@ -124,7 +183,6 @@ export async function GET(request: Request) {
 						);
 					}
 				} else {
-					// Fresh connect: send full batch
 					const lines = await tailLines(HISTORY_FILE, limit);
 					const results = lines
 						.map(parseCommand)
@@ -141,7 +199,6 @@ export async function GET(request: Request) {
 				return;
 			}
 
-			// Watch for new commands
 			try {
 				const watcher = watch(HISTORY_FILE);
 				for await (const event of watcher) {
@@ -150,7 +207,6 @@ export async function GET(request: Request) {
 						const { size } = await stat(HISTORY_FILE);
 						if (size <= lastSize) continue;
 
-						// Read only the new bytes appended since last check
 						const fh = await open(HISTORY_FILE, "r");
 						const newBytes = Buffer.alloc(size - lastSize);
 						await fh.read(newBytes, 0, size - lastSize, lastSize);
