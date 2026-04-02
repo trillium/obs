@@ -1,0 +1,36 @@
+focus chrome
+tab new
+go to github dot com
+scroll down
+click submit button
+select all
+copy that
+focus terminal
+paste that
+run that
+clear screen
+say hello world
+undo that
+save file
+focus obs
+switch scene full screen
+open new tab
+go to twitch dot com
+scroll up
+click follow
+focus slack
+channel general
+say looks good ship it
+focus v s code
+file new
+type function main
+save that
+go to line ten
+select word
+delete that
+undo
+focus terminal
+git status
+git add dot
+git commit message update overlay
+git push

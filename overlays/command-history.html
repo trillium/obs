@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 249px;
+    height: 736px;
+    background: #111111;
+    font-family: "SF Mono", "Menlo", "Monaco", monospace;
+    color: #e0e0e0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .header {
+    padding: 14px 12px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #666;
+    border-bottom: 1px solid #222;
+    flex-shrink: 0;
+  }
+  .commands {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 8px 0;
+    overflow: hidden;
+  }
+  .cmd {
+    padding: 5px 12px;
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.3;
+    transition: opacity 0.3s ease;
+  }
+  .cmd.recent-1 { opacity: 1.0; color: #fff; }
+  .cmd.recent-2 { opacity: 0.75; }
+  .cmd.recent-3 { opacity: 0.55; }
+  .cmd.recent-4 { opacity: 0.45; }
+  .cmd.recent-5 { opacity: 0.38; }
+  .cmd.new {
+    animation: slideIn 0.25s ease-out;
+  }
+  @keyframes slideIn {
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  .prompt {
+    color: #555;
+    margin-right: 6px;
+  }
+</style>
+</head>
+<body>
+  <div class="header">voice commands</div>
+  <div class="commands" id="commands"></div>
+  <script>
+    const CONFIG_PATH = 'file:///Users/trilliumsmith/code/obs/overlays/command-history.txt';
+    const MAX_VISIBLE = 35;
+    const commandsEl = document.getElementById('commands');
+    let lastLineCount = 0;
+
+    function render(lines) {
+      const visible = lines.slice(-MAX_VISIBLE);
+      commandsEl.innerHTML = '';
+
+      visible.forEach((line, i) => {
+        const div = document.createElement('div');
+        div.className = 'cmd';
+
+        const distFromEnd = visible.length - 1 - i;
+        if (distFromEnd < 5) {
+          div.classList.add('recent-' + (distFromEnd + 1));
+        }
+        if (i >= lastLineCount - (lines.length - visible.length) && lines.length > lastLineCount) {
+          div.classList.add('new');
+        }
+
+        div.innerHTML = '<span class="prompt">›</span>' + escapeHtml(line);
+        commandsEl.appendChild(div);
+      });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    async function poll() {
+      try {
+        const resp = await fetch(CONFIG_PATH + '?_=' + Date.now());
+        const text = await resp.text();
+        const lines = text.trim().split('\n').filter(l => l.trim());
+        if (lines.length !== lastLineCount) {
+          render(lines);
+          lastLineCount = lines.length;
+        }
+      } catch (e) {
+        // File not available yet
+      }
+    }
+
+    setInterval(poll, 500);
+    poll();
+  </script>
+</body>
+</html>
