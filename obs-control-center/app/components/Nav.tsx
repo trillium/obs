@@ -11,6 +11,7 @@ const links = [
 	{ label: "BRB", href: "/overlay/brb" },
 	{ label: "Commands", href: "/command-history" },
 	{ label: "Activity", href: "/activity" },
+	{ label: "Terminal", href: "/terminal" },
 ];
 
 export function Nav() {
