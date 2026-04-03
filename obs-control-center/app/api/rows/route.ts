@@ -82,7 +82,7 @@ export async function GET() {
 			weeks,
 			activity,
 			firstDate,
-			untrackedCount,
+			untracked: { count: untrackedCount, date: firstDate },
 			totalRows: validRows,
 			daysPassed,
 			ahead: validRows - daysPassed,

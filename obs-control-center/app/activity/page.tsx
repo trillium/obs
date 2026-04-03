@@ -19,25 +19,22 @@ export default function Activity() {
 
 	return (
 		<div
-			className={`flex flex-col gap-4 bg-black/60 p-4 font-mono backdrop-blur-sm ${
+			className={`flex flex-col gap-8 overflow-x-auto p-4 ${
 				isObs ? "h-[400px] w-[900px]" : "min-h-screen w-full max-w-4xl pt-14"
 			}`}
 		>
-			{/* Stats */}
 			<RowingStats data={data} />
-
-			{/* Activity grid */}
-			<div className="flex-1 overflow-x-auto">
-				<ActivityGrid weeks={data.weeks} activity={data.activity} />
+			<div>
+				<h3 className="mb-2 font-bold">
+					Activity Map (52 Weeks)
+					{data.firstDate && ` - First tracked: ${data.firstDate}`}
+				</h3>
+				<ActivityGrid
+					weeks={data.weeks}
+					activity={data.activity}
+					untracked={data.untracked}
+				/>
 			</div>
-
-			{/* Footer */}
-			{data.firstDate && (
-				<div className="text-[9px] text-white/20">
-					tracking since {data.firstDate}
-					{data.untrackedCount > 0 && ` · ${data.untrackedCount} untracked`}
-				</div>
-			)}
 		</div>
 	);
 }

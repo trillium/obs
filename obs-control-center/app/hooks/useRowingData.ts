@@ -6,7 +6,7 @@ export interface RowingData {
 	weeks: string[][];
 	activity: Record<string, number>;
 	firstDate: string | null;
-	untrackedCount: number;
+	untracked: { count: number; date: string | null };
 	totalRows: number;
 	daysPassed: number;
 	ahead: number;
