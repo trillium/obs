@@ -3,7 +3,7 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
-		"dev": "vinext dev --port 7400",
+		"dev": "vinext dev --port 7400 --hostname 0.0.0.0",
 		"build": "vinext build",
 		"start": "vinext start",
 		"check": "biome check .",
