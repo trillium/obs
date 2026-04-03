@@ -3,6 +3,7 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
+		"predev": "node scripts/start-ttyd.mjs",
 		"dev": "vinext dev --port 7400 --hostname 0.0.0.0",
 		"build": "vinext build",
 		"start": "vinext start",

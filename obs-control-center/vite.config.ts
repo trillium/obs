@@ -1,10 +1,11 @@
+import vinext from "vinext";
 import { defineConfig } from "vite";
-import { startTtyd, stopTtyd, TTYD_PORT } from "./app/lib/ttyd";
+import { TTYD_PORT } from "./app/lib/ttyd";
 
 export default defineConfig({
+	plugins: [vinext()],
 	server: {
 		host: "0.0.0.0",
-		port: 7400,
 		allowedHosts: true,
 		proxy: {
 			"/terminal-ws": {
@@ -14,17 +15,4 @@ export default defineConfig({
 			},
 		},
 	},
-	plugins: [
-		{
-			name: "ttyd-lifecycle",
-			configureServer() {
-				startTtyd();
-				process.on("exit", stopTtyd);
-				process.on("SIGINT", () => {
-					stopTtyd();
-					process.exit();
-				});
-			},
-		},
-	],
 });
