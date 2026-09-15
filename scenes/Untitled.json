@@ -675,14 +675,14 @@
         },
         {
             "prev_ver": 537001985,
-            "name": "Firebot Chat - Side",
-            "uuid": "c7e79adc-c3fd-49f8-ad31-e4ea2b0cccd6",
+            "name": "PM5 Overlay",
+            "uuid": "4468c4aa-bf6a-4c9d-a918-73692336f9ff",
             "id": "browser_source",
             "versioned_id": "browser_source",
             "settings": {
-                "url": "http://localhost:7472/overlay-resources/chat.html?channel=trilliumsmith&max=12&lifetime=25000",
-                "width": 458,
-                "height": 773
+                "width": 750,
+                "height": 315,
+                "url": "http://mini1.hippo-tilapia.ts.net:8765/obs?layout=side-bar&metrics=split,stroke_rate,distance,time"
             },
             "mixers": 255,
             "sync": 0,
@@ -709,14 +709,75 @@
         },
         {
             "prev_ver": 537001985,
-            "name": "PM5 Overlay",
-            "uuid": "4468c4aa-bf6a-4c9d-a918-73692336f9ff",
+            "name": "Chat Panel BG",
+            "uuid": "83624cb4-266e-45c2-847f-12e4fd753205",
+            "id": "color_source",
+            "versioned_id": "color_source_v3",
+            "settings": {
+                "color": 4280297262,
+                "width": 480,
+                "height": 810
+            },
+            "mixers": 0,
+            "sync": 0,
+            "flags": 0,
+            "volume": 1.0,
+            "balance": 0.5,
+            "enabled": true,
+            "muted": false,
+            "push-to-mute": false,
+            "push-to-mute-delay": 0,
+            "push-to-talk": false,
+            "push-to-talk-delay": 0,
+            "hotkeys": {},
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
+            "monitoring_type": 0,
+            "private_settings": {}
+        },
+        {
+            "prev_ver": 537001985,
+            "name": "CHAT Label",
+            "uuid": "d11e6a49-5703-4983-8a47-0725be5faddc",
+            "id": "text_ft2_source",
+            "versioned_id": "text_ft2_source_v2",
+            "settings": {
+                "text": "CHAT",
+                "color1": 4294967295,
+                "font": {
+                    "face": "Helvetica",
+                    "flags": 0,
+                    "size": 34,
+                    "style": "Bold"
+                }
+            },
+            "mixers": 0,
+            "sync": 0,
+            "flags": 0,
+            "volume": 1.0,
+            "balance": 0.5,
+            "enabled": true,
+            "muted": false,
+            "push-to-mute": false,
+            "push-to-mute-delay": 0,
+            "push-to-talk": false,
+            "push-to-talk-delay": 0,
+            "hotkeys": {},
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
+            "monitoring_type": 0,
+            "private_settings": {}
+        },
+        {
+            "prev_ver": 537001985,
+            "name": "Firebot Stream Overlay",
+            "uuid": "e460e0b8-4573-4e73-a377-2b477c508b27",
             "id": "browser_source",
             "versioned_id": "browser_source",
             "settings": {
-                "url": "http://100.102.238.78:8765/obs",
-                "width": 1000,
-                "height": 420
+                "url": "http://localhost:7472/overlay/?instance=Stream%201080p",
+                "width": 1920,
+                "height": 1080
             },
             "mixers": 255,
             "sync": 0,
@@ -2544,9 +2605,64 @@
             "id": "scene",
             "versioned_id": "scene",
             "settings": {
-                "id_counter": 10,
+                "id_counter": 13,
                 "custom_size": false,
                 "items": [
+                    {
+                        "name": "Chat Panel BG",
+                        "source_uuid": "83624cb4-266e-45c2-847f-12e4fd753205",
+                        "visible": true,
+                        "locked": false,
+                        "rot": 0.0,
+                        "scale_ref": {
+                            "x": 1920.0,
+                            "y": 1080.0
+                        },
+                        "align": 5,
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
+                        "crop_left": 0,
+                        "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 11,
+                        "group_item_backup": false,
+                        "pos": {
+                            "x": 1440.0,
+                            "y": 270.0
+                        },
+                        "pos_rel": {
+                            "x": 0.8888888955116272,
+                            "y": -0.5
+                        },
+                        "scale": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "scale_rel": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "bounds": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "bounds_rel": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 0
+                        },
+                        "hide_transition": {
+                            "duration": 0
+                        },
+                        "private_settings": {}
+                    },
                     {
                         "name": "Display Capture (NO PII MASK)",
                         "source_uuid": "365da6fd-f7de-4d2d-b49d-015092c9fbf8",
@@ -2878,61 +2994,6 @@
                         "private_settings": {}
                     },
                     {
-                        "name": "Firebot Chat - Side",
-                        "source_uuid": "c7e79adc-c3fd-49f8-ad31-e4ea2b0cccd6",
-                        "visible": true,
-                        "locked": false,
-                        "rot": 0.0,
-                        "scale_ref": {
-                            "x": 1920.0,
-                            "y": 1080.0
-                        },
-                        "align": 5,
-                        "bounds_type": 0,
-                        "bounds_align": 0,
-                        "bounds_crop": false,
-                        "crop_left": 0,
-                        "crop_top": 0,
-                        "crop_right": 0,
-                        "crop_bottom": 0,
-                        "id": 9,
-                        "group_item_backup": false,
-                        "pos": {
-                            "x": 1440.0,
-                            "y": 270.0
-                        },
-                        "pos_rel": {
-                            "x": 0.8888888955116272,
-                            "y": -0.5
-                        },
-                        "scale": {
-                            "x": 1.0478655099868774,
-                            "y": 1.0478655099868774
-                        },
-                        "scale_rel": {
-                            "x": 1.0478655099868774,
-                            "y": 1.0478655099868774
-                        },
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_rel": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "scale_filter": "disable",
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "hide_transition": {
-                            "duration": 0
-                        },
-                        "private_settings": {}
-                    },
-                    {
                         "name": "PM5 Overlay",
                         "source_uuid": "4468c4aa-bf6a-4c9d-a918-73692336f9ff",
                         "visible": true,
@@ -2961,12 +3022,122 @@
                             "y": 0.5
                         },
                         "scale": {
-                            "x": 0.6428571343421936,
-                            "y": 0.6428571343421936
+                            "x": 0.8571428656578064,
+                            "y": 0.8571428656578064
                         },
                         "scale_rel": {
-                            "x": 0.6428571343421936,
-                            "y": 0.6428571343421936
+                            "x": 0.8571428656578064,
+                            "y": 0.8571428656578064
+                        },
+                        "bounds": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "bounds_rel": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 0
+                        },
+                        "hide_transition": {
+                            "duration": 0
+                        },
+                        "private_settings": {}
+                    },
+                    {
+                        "name": "CHAT Label",
+                        "source_uuid": "d11e6a49-5703-4983-8a47-0725be5faddc",
+                        "visible": true,
+                        "locked": false,
+                        "rot": 0.0,
+                        "scale_ref": {
+                            "x": 1920.0,
+                            "y": 1080.0
+                        },
+                        "align": 5,
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
+                        "crop_left": 0,
+                        "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 12,
+                        "group_item_backup": false,
+                        "pos": {
+                            "x": 1456.0,
+                            "y": 282.0
+                        },
+                        "pos_rel": {
+                            "x": 0.9185185432434082,
+                            "y": -0.47777777910232544
+                        },
+                        "scale": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "scale_rel": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "bounds": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "bounds_rel": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 0
+                        },
+                        "hide_transition": {
+                            "duration": 0
+                        },
+                        "private_settings": {}
+                    },
+                    {
+                        "name": "Firebot Stream Overlay",
+                        "source_uuid": "e460e0b8-4573-4e73-a377-2b477c508b27",
+                        "visible": true,
+                        "locked": false,
+                        "rot": 0.0,
+                        "scale_ref": {
+                            "x": 1920.0,
+                            "y": 1080.0
+                        },
+                        "align": 5,
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
+                        "crop_left": 0,
+                        "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 13,
+                        "group_item_backup": false,
+                        "pos": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "pos_rel": {
+                            "x": -1.7777777910232544,
+                            "y": -1.0
+                        },
+                        "scale": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "scale_rel": {
+                            "x": 1.0,
+                            "y": 1.0
                         },
                         "bounds": {
                             "x": 0.0,
@@ -3014,10 +3185,14 @@
                 "libobs.hide_scene_item.6": [],
                 "libobs.show_scene_item.7": [],
                 "libobs.hide_scene_item.7": [],
-                "libobs.show_scene_item.9": [],
-                "libobs.hide_scene_item.9": [],
                 "libobs.show_scene_item.10": [],
-                "libobs.hide_scene_item.10": []
+                "libobs.hide_scene_item.10": [],
+                "libobs.show_scene_item.11": [],
+                "libobs.hide_scene_item.11": [],
+                "libobs.show_scene_item.12": [],
+                "libobs.hide_scene_item.12": [],
+                "libobs.show_scene_item.13": [],
+                "libobs.hide_scene_item.13": []
             },
             "deinterlace_mode": 0,
             "deinterlace_field_order": 0,
