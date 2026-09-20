@@ -680,9 +680,9 @@
             "id": "browser_source",
             "versioned_id": "browser_source",
             "settings": {
+                "url": "http://mini1.hippo-tilapia.ts.net:8765/obs?layout=side-bar&metrics=split,stroke_rate,distance,time",
                 "width": 750,
-                "height": 315,
-                "url": "http://mini1.hippo-tilapia.ts.net:8765/obs?layout=side-bar&metrics=split,stroke_rate,distance,time"
+                "height": 315
             },
             "mixers": 255,
             "sync": 0,
@@ -743,13 +743,13 @@
             "versioned_id": "text_ft2_source_v2",
             "settings": {
                 "text": "CHAT",
-                "color1": 4294967295,
                 "font": {
                     "face": "Helvetica",
                     "flags": 0,
                     "size": 34,
                     "style": "Bold"
-                }
+                },
+                "color1": 4294967295
             },
             "mixers": 0,
             "sync": 0,
@@ -3173,6 +3173,8 @@
             "push-to-talk-delay": 0,
             "hotkeys": {
                 "OBSBasic.SelectScene": [],
+                "libobs.show_scene_item.11": [],
+                "libobs.hide_scene_item.11": [],
                 "libobs.show_scene_item.1": [],
                 "libobs.hide_scene_item.1": [],
                 "libobs.show_scene_item.2": [],
@@ -3187,8 +3189,6 @@
                 "libobs.hide_scene_item.7": [],
                 "libobs.show_scene_item.10": [],
                 "libobs.hide_scene_item.10": [],
-                "libobs.show_scene_item.11": [],
-                "libobs.hide_scene_item.11": [],
                 "libobs.show_scene_item.12": [],
                 "libobs.hide_scene_item.12": [],
                 "libobs.show_scene_item.13": [],

@@ -6,3 +6,13 @@ obs-listener/
 .dolt/
 *.db
 .beads-credential-key
+
+# Credentials & OBS config snapshots — never commit (public repo)
+profiles/*/basic.ini
+profiles/*/service.json
+scenes/*.bak
+scenes/*.bak2
+scenes/*.bak.pre-*
+scenes/*.v1
+obs-control-center/.env
+scenes/macbook-pro-scenes.json
