@@ -16,3 +16,6 @@ scenes/*.bak.pre-*
 scenes/*.v1
 obs-control-center/.env
 scenes/macbook-pro-scenes.json
+
+# TS build artifacts
+*.tsbuildinfo
