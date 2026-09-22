@@ -1,0 +1,429 @@
+#!/usr/bin/env python3
+"""feed-doctor — pinpoint a frozen rowing-metrics overlay in seconds.
+
+Walks the live chain, first failure wins (each names the broken link + fix):
+
+  1. PM5 erg broadcasting   (BLE presence / last-seen in the bridge log)
+  2. pm5-ha-bridge alive    (launchd PID + recent log output on mini1)
+  3. :8765 web service      (the exact OBS browser-source path answers)
+  4. overlay data freshness (WS greeting advances: elapsed/distance move)
+
+Read-only against live systems: never restarts or reconfigures anything,
+no credentials/keys/tokens anywhere (ssh uses your existing agent keys,
+the :8765 feed is unauthenticated tailnet-only by design). Every network
+hop has a short timeout; a full run finishes in seconds.
+
+  exit 0  healthy — one OK line with the live metrics
+  exit 2  unhealthy — names the broken link + the fix hint
+  exit 3  checker error — could not probe (ssh down, unparseable log, ...)
+
+Usage:
+  scripts/feed-doctor [--mini1-host mini1] [--port 8765]
+                      [--sample-secs 4] [--presence-grace-secs 300]
+                      [--log-file PATH] [--self-test]
+
+  --log-file replays a recorded bridge log instead of ssh (offline triage).
+  --self-test replays canned healthy + frozen scenarios through the same
+  check functions (proves both paths without touching the live feed).
+"""
+
+import argparse
+import base64
+import datetime
+import json
+import os
+import re
+import socket
+import subprocess
+import sys
+import urllib.request
+
+LOG_TS = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?:,\d+)?\s+\w+\s+(.*)$")
+RE_PRESENCE = re.compile(r"Found PM5|Connected to |Subscribed to RowStatus")
+RE_HUNT_MISS = re.compile(r"No PM5 found this scan cycle")
+RE_DISCONNECT = re.compile(r"PM5 disconnected|no response from PM5|link (lost|error)",
+                           re.IGNORECASE)
+HUNT_RECENT_S = 90          # a scan-miss this fresh means the bridge is hunting NOW
+LOG_SILENCE_S = 3600        # PID alive but log older than this => wedged, not rowing
+DEFAULT_PORT = 8765
+AGENT_LABEL = "com.mini1.pm5bridge"
+BRIDGE_LOG = "~/Library/Logs/pm5-bridge.log"
+
+
+def parse_log_time(line):
+    """(naive-local datetime, message) or None. Bridge logs mini1-local time."""
+    m = LOG_TS.match(line)
+    if not m:
+        return None
+    try:
+        return (datetime.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S"),
+                m.group(2))
+    except ValueError:
+        return None
+
+
+def check_erg(now, lines, grace_s):
+    """Link 1: is the erg visible to mini1's BLE stack?
+
+    PASS when the bridge is NOT currently hunting (no scan-miss in the last
+    HUNT_RECENT_S: while it holds a link it never scans), or when it saw the
+    erg within grace_s. FAIL names the erg + the wake-up fix.
+    """
+    last_presence, last_hunt = None, None
+    oldest, newest = None, None
+    for line in lines:
+        parsed = parse_log_time(line)
+        if not parsed:
+            continue
+        ts, msg = parsed
+        if ts > now:
+            continue  # clock skew guard
+        newest = ts if newest is None or ts > newest else newest
+        oldest = ts if oldest is None or ts < oldest else oldest
+        if RE_PRESENCE.search(msg):
+            last_presence = ts if last_presence is None or ts > last_presence \
+                else last_presence
+        if RE_HUNT_MISS.search(msg) or RE_DISCONNECT.search(msg):
+            last_hunt = ts if last_hunt is None or ts > last_hunt else last_hunt
+    if newest is None:
+        return (None, "no parseable bridge-log lines to judge erg presence")
+    hunting = last_hunt is not None and (now - last_hunt).total_seconds() \
+        <= HUNT_RECENT_S
+    if not hunting:
+        detail = ("bridge holds its BLE link (no scan misses lately)"
+                  if last_presence else "bridge is not scanning for the erg")
+        return (True, detail)
+    age = None if last_presence is None else \
+        (now - last_presence).total_seconds()
+    if age is not None and age <= grace_s:
+        return (True, "erg seen %ds ago; bridge re-acquiring" % int(age))
+    if age is None:
+        span = fmt_age((newest - oldest).total_seconds()) \
+            if oldest and newest > oldest else "this log window"
+        ago = "no presence in the last ~%s of bridge log" % span
+    else:
+        ago = "last seen %s ago" % fmt_age(age)
+    return (False,
+            "LINK 1 BROKEN: PM5 erg silent (%s) while bridge is hunting.\n"
+            "  fix: wake the erg — pull the chain / press any PM5 button so it\n"
+            "  advertises — then wait ~20s. Still silent? check PM5 batteries\n"
+            "  and that the erg is within BLE range of mini1." % ago)
+
+
+def check_bridge(now, lines, pid):
+    """Link 2: bridge process alive and emitting (log output recently)."""
+    if not pid:
+        return (False,
+                "LINK 2 BROKEN: pm5-ha-bridge is not running on mini1.\n"
+                "  fix (on mini1, rower present): "
+                "launchctl kickstart -k gui/$(id -u)/%s" % AGENT_LABEL)
+    oldest, newest = None, None
+    for line in lines:
+        parsed = parse_log_time(line)
+        if parsed and parsed[0] <= now and \
+                (newest is None or parsed[0] > newest):
+            newest = parsed[0]
+    if newest is None:
+        return (False,
+                "LINK 2 BROKEN: bridge runs (pid %s) but its log is "
+                "unreadable.\n  fix: inspect %s on mini1." % (pid, BRIDGE_LOG))
+    quiet = (now - newest).total_seconds()
+    hunting = any(parse_log_time(l) and RE_HUNT_MISS.search(l)
+                  and (now - parse_log_time(l)[0]).total_seconds()
+                  <= HUNT_RECENT_S for l in lines if parse_log_time(l))
+    if quiet <= LOG_SILENCE_S or hunting:
+        return (True, "bridge alive (pid %s), output %s ago"
+                % (pid, fmt_age(quiet)))
+    return (False,
+            "LINK 2 BROKEN: bridge alive (pid %s) but silent for %s — wedged,\n"
+            "  not rowing (a live link goes quiet, but never this long without\n"
+            "  an idle-disconnect line).\n"
+            "  fix (on mini1): tail %s, then restart the agent only if the\n"
+            "  log confirms no BLE traffic." % (pid, fmt_age(quiet), BRIDGE_LOG))
+
+
+def check_web(base_url, timeout):
+    """Link 3: the exact OBS browser-source path answers."""
+    url = base_url + "/obs?layout=side-bar"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as r:
+            if r.status == 200:
+                return (True, ":8765 serving the OBS overlay page")
+            return (False,
+                    "LINK 3 BROKEN: :8765 answered HTTP %s on the overlay path.\n"
+                    "  fix: the bridge's overlay server is wedged — check the\n"
+                    "  bridge log on mini1 (link 2) and restart the agent." % r.status)
+    except Exception as exc:
+        return (False,
+                "LINK 3 BROKEN: :8765 not answering (%s: %s).\n"
+                "  fix: bridge down or its overlay server disabled (PM5_OBS_ENABLED=0)\n"
+                "  — verify link 2, then check the agent on mini1."
+                % (type(exc).__name__, exc))
+
+
+def ws_greeting(host, port, timeout):
+    """Read the bridge's WS greeting (last broadcast: connected flag + values)."""
+    key = base64.b64encode(os.urandom(16)).decode()
+    req = ("GET /ws HTTP/1.1\r\nHost: %s:%d\r\nUpgrade: websocket\r\n"
+           "Connection: Upgrade\r\nSec-WebSocket-Key: %s\r\n"
+           "Sec-WebSocket-Version: 13\r\n\r\n" % (host, port, key))
+    s = socket.create_connection((host, port), timeout=timeout)
+    try:
+        s.sendall(req.encode())
+        head = b""
+        while b"\r\n\r\n" not in head:
+            chunk = s.recv(4096)
+            if not chunk:
+                raise ConnectionError("closed during WS handshake")
+            head += chunk
+        if b" 101 " not in head.split(b"\r\n", 1)[0]:
+            raise ConnectionError("no 101 Switching Protocols: %s"
+                                  % head.split(b"\r\n", 1)[0].decode("latin1"))
+        return s, read_ws_text(s, timeout)
+    except Exception:
+        s.close()
+        raise
+
+
+def read_ws_text(s, timeout):
+    """Next text frame from a server (unmasked) or None on timeout."""
+    s.settimeout(timeout)
+    try:
+        hdr = recvn(s, 2)
+    except socket.timeout:
+        return None
+    b1, b2 = hdr[0], hdr[1]
+    opcode, ln = b1 & 0x0F, b2 & 0x7F
+    if ln == 126:
+        ln = int.from_bytes(recvn(s, 2), "big")
+    elif ln == 127:
+        ln = int.from_bytes(recvn(s, 8), "big")
+    if b2 & 0x80:
+        mask = recvn(s, 4)
+        data = bytes(c ^ mask[i % 4] for i, c in enumerate(recvn(s, ln)))
+    else:
+        data = recvn(s, ln) if ln else b""
+    if opcode == 0x8:
+        raise ConnectionError("server closed the WS")
+    if opcode != 0x1:
+        return read_ws_text(s, timeout)  # skip ping/pong/binary, keep waiting
+    return data.decode("utf-8", "replace")
+
+
+def recvn(s, n):
+    buf = b""
+    while len(buf) < n:
+        chunk = s.recv(n - len(buf))
+        if not chunk:
+            raise ConnectionError("WS closed mid-frame")
+        buf += chunk
+    return buf
+
+
+def advancing(first, second):
+    """True if elapsed time or distance moved between two payloads."""
+    for k in ("elapsed_time_s", "distance_m"):
+        if first.get(k) != second.get(k):
+            return True
+    return False
+
+
+def check_freshness(host, port, timeout, sample_s):
+    """Link 4: overlay data is live (connected + values advance)."""
+    try:
+        s, first_raw = ws_greeting(host, port, timeout)
+    except Exception as exc:
+        return (False,
+                "LINK 4 BROKEN: overlay feed unreachable (%s: %s).\n"
+                "  fix: :8765 answers HTTP (link 3) but its WebSocket gives no\n"
+                "  data — the bridge broadcast path is wedged; restart the agent."
+                % (type(exc).__name__, exc))
+    try:
+        first = json.loads(first_raw)
+        second_raw = read_ws_text(s, sample_s)
+        second = json.loads(second_raw) if second_raw else None
+    except Exception as exc:
+        return (False,
+                "LINK 4 BROKEN: overlay feed sent garbage (%s).\n"
+                "  fix: bridge broadcast path wedged; restart the agent." % exc)
+    finally:
+        s.close()
+    live = "%s | rate %s spm | %sm" % (
+        first.get("split"), first.get("stroke_rate"), first.get("distance_m"))
+    if not first.get("connected"):
+        return (False,
+                "LINK 4 STALE: overlay shows 'waiting for rower' (%s) — no erg\n"
+                "  linked, so the page holds old values by design.\n"
+                "  fix: links 1-3 are healthy, so wake the erg (link 1 hint) and\n"
+                "  re-run; if it stays here, the bridge scan loop is stuck." % live)
+    if second is not None and advancing(first, second):
+        return (True, "overlay LIVE (%s)" % live)
+    return (False,
+            "LINK 4 STALE: bridge linked but values frozen (%s) — overlay will\n"
+            "  sit still mid-workout.\n"
+            "  fix: rower may just be resting (re-run to confirm); otherwise the\n"
+            "  BLE link is wedged — power-cycle the erg, then restart the agent." % live)
+
+
+def fmt_age(secs):
+    secs = int(secs)
+    if secs < 90:
+        return "%ds" % secs
+    mins = secs // 60
+    if mins < 90:
+        return "%dm" % mins
+    return "%dh%dm" % (mins // 60, mins % 60)
+
+
+def fetch_bridge_log(host, ssh_timeout):
+    """One ssh: tail the log + ask launchd for the agent PID. Read-only."""
+    cmd = ["ssh", "-o", "BatchMode=yes",
+           "-o", "ConnectTimeout=%d" % ssh_timeout, host,
+           "tail -n 300 %s; echo __PID__; "
+           "launchctl list %s 2>/dev/null | grep -E '\"PID\"'" % (BRIDGE_LOG, AGENT_LABEL)]
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True,
+                           timeout=ssh_timeout + 10)
+    except Exception as exc:
+        return None, None, "ssh to %s failed (%s: %s)" % (host, type(exc).__name__, exc)
+    if p.returncode != 0:
+        return None, None, "ssh to %s failed (exit %d: %s)" % (
+            host, p.returncode, (p.stderr or "").strip()[:200])
+    lines, pid, seen_pid = [], None, False
+    for line in p.stdout.splitlines():
+        if line.strip() == "__PID__":
+            seen_pid = True
+            continue
+        if seen_pid:
+            m = re.search(r'"PID"\s*=\s*(\d+)', line)
+            if m:
+                pid = m.group(1)
+        else:
+            lines.append(line)
+    return lines, pid, None
+
+
+SELF_TESTS = [
+    ("healthy-live", 0, "OK:", [
+        "2026-09-22 15:00:00,000 INFO Found PM5: PM5 432153856 Row (X)",
+        "2026-09-22 15:00:02,000 INFO Connected to X",
+        "2026-09-22 15:00:02,100 INFO Subscribed to RowStatus + RowStatus1 notifications",
+    ], "pid: 34825",
+     {"type": "stats", "connected": True, "elapsed_time_s": 612.0,
+      "distance_m": 2501.0, "split_s_per_500m": 125.3, "stroke_rate": 24,
+      "speed_ms": 3.99, "split": "2:05.3"},
+     {"type": "stats", "connected": True, "elapsed_time_s": 616.0,
+      "distance_m": 2521.0, "split_s_per_500m": 125.1, "stroke_rate": 24,
+      "speed_ms": 4.0, "split": "2:05.1"}),
+    ("freeze-erg-silent", 2, "LINK 1", [
+        "2026-09-22 00:27:03,203 INFO Connected to X",
+        "2026-09-22 01:18:57,045 WARNING PM5 disconnected",
+        "2026-09-22 15:32:51,372 INFO No PM5 found this scan cycle",
+        "2026-09-22 15:33:11,394 INFO No PM5 found this scan cycle",
+    ], "pid: 34825", None, None),
+    ("stale-linked-frozen", 2, "LINK 4", [
+        "2026-09-22 15:00:02,000 INFO Connected to X",
+    ], "pid: 34825",
+     {"type": "stats", "connected": True, "elapsed_time_s": 612.0,
+      "distance_m": 2501.0, "split_s_per_500m": 125.3, "stroke_rate": 24,
+      "speed_ms": 3.99, "split": "2:05.3"},
+     {"type": "stats", "connected": True, "elapsed_time_s": 612.0,
+      "distance_m": 2501.0, "split_s_per_500m": 125.3, "stroke_rate": 24,
+      "speed_ms": 3.99, "split": "2:05.3"}),
+]
+
+
+def run_checks(now, lines, pid, web_ok, first, second):
+    """Same decision order as the live path; returns (exit_code, message)."""
+    ok, msg = check_erg(now, lines, grace_s=300)
+    if not ok:
+        return 2, msg
+    ok, msg = check_bridge(now, lines, pid)
+    if not ok:
+        return 2, msg
+    if not web_ok:
+        return 2, ("LINK 3 BROKEN: :8765 not answering (see live run for detail).")
+    if first is None:
+        return 2, "LINK 4 BROKEN: overlay feed gave no data."
+    live = "%s | rate %s spm | %sm" % (
+        first.get("split"), first.get("stroke_rate"), first.get("distance_m"))
+    if not first.get("connected"):
+        return 2, "LINK 4 STALE: overlay shows 'waiting for rower' (%s)." % live
+    if second is not None and advancing(first, second):
+        return 0, "OK: overlay LIVE (%s)" % live
+    return 2, "LINK 4 STALE: bridge linked but values frozen (%s)." % live
+
+
+def self_test():
+    now = datetime.datetime(2026, 9, 22, 15, 33, 30)
+    failures = 0
+    for name, want_code, want_frag, lines, pid, first, second in SELF_TESTS:
+        code, msg = run_checks(now, lines, pid, True, first, second)
+        first_line = msg.splitlines()[0]
+        good = code == want_code and want_frag in first_line
+        print("%s %-20s exit=%d :: %s" % ("PASS" if good else "FAIL", name,
+                                          code, first_line[:100]))
+        failures += not good
+    # full-payload advancing() unit check: resting rower (elapsed moves) is live
+    a = {"elapsed_time_s": 10.0, "distance_m": 100.0}
+    b = {"elapsed_time_s": 14.0, "distance_m": 100.0}
+    good = advancing(a, b) and not advancing(a, dict(a))
+    print("%s %-20s" % ("PASS" if good else "FAIL", "advancing-resting"))
+    failures += not good
+    return 3 if failures else 0
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Pinpoint a frozen rowing overlay.")
+    ap.add_argument("--mini1-host", default="mini1")
+    ap.add_argument("--port", type=int, default=DEFAULT_PORT)
+    ap.add_argument("--tailnet-host", default="mini1.hippo-tilapia.ts.net")
+    ap.add_argument("--ssh-timeout", type=int, default=8)
+    ap.add_argument("--http-timeout", type=int, default=3)
+    ap.add_argument("--sample-secs", type=int, default=4)
+    ap.add_argument("--presence-grace-secs", type=int, default=300)
+    ap.add_argument("--log-file", default=None,
+                    help="replay a recorded bridge log for links 1-2 (no ssh)")
+    ap.add_argument("--self-test", action="store_true")
+    args = ap.parse_args()
+
+    if args.self_test:
+        sys.exit(self_test())
+
+    now = datetime.datetime.now()
+    if args.log_file:
+        with open(args.log_file, encoding="utf-8", errors="replace") as f:
+            lines = f.read().splitlines()
+        pid = "replay"
+    else:
+        lines, pid, err = fetch_bridge_log(args.mini1_host, args.ssh_timeout)
+        if err is not None:
+            print("UNKNOWN: cannot probe mini1 (%s).\n"
+                  "  fix: check tailnet/ssh from this machine — the feed itself\n"
+                  "  is unjudged until the checker can reach mini1." % err)
+            return 3
+
+    ok, msg = check_erg(now, lines, args.presence_grace_secs)
+    if not ok:
+        print(msg)
+        return 2
+
+    ok, msg = check_bridge(now, lines, pid)
+    if not ok:
+        print(msg)
+        return 2
+
+    base = "http://%s:%d" % (args.tailnet_host, args.port)
+    ok, msg = check_web(base, args.http_timeout)
+    if not ok:
+        print(msg)
+        return 2
+
+    ok, msg = check_freshness(args.tailnet_host, args.port,
+                              args.http_timeout, args.sample_secs)
+    print(msg)
+    return 0 if ok else 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
