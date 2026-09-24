@@ -32,6 +32,23 @@ Installed to `~/bin/imessage` via symlink.
 
 **How it works:** `launchctl bootout` fully unregisters the daemon so launchd won't respawn it (on crash, Mach port lookup, or distributed notification). `launchctl bootstrap` brings it back.
 
+### `feed-doctor` — Rowing Overlay Triage
+
+Pinpoints a frozen rowing-metrics overlay in seconds by walking the live
+chain (PM5 erg → `pm5-ha-bridge` on mini1 → `:8765` overlay server →
+WebSocket data freshness), first failure wins. Read-only, no credentials,
+stdlib only.
+
+```bash
+scripts/feed-doctor              # live check (ssh to mini1 + tailnet HTTP/WS)
+scripts/feed-doctor --self-test  # canned healthy + frozen scenarios, no network
+scripts/feed-doctor --log-file <recorded bridge log>  # offline triage
+```
+
+Exit 0 = overlay LIVE (one OK line); 2 = broken link named + fix hint;
+3 = checker could not probe. Chain details (bridge log path, endpoints)
+are the mini1 `pm5-ha-bridge` README + this script's `--help`.
+
 ### `go-live.py` — Stream Announcements
 
 Posts go-live messages to Bluesky, Twitter, and copies to clipboard for Discord.
